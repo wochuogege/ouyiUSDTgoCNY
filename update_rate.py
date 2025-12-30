@@ -3,24 +3,25 @@ import datetime
 import os
 
 def get_okx_rate():
-    # 使用 OKX 公开的指数价格接口 (此处以 USDT/CNY 为例)
+    # 尝试使用国际备用接口
     url = "https://www.okx.com/api/v5/market/index-tickers?instId=USDT-CNY"
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=15)
+        response.raise_for_status() # 检查是否返回了 4xx 或 5xx 错误
         data = response.json()
-        if data['code'] == '0':
-            rate = data['data'][0]['idxPx']
-            return rate
+        if data.get('code') == '0':
+            return data['data'][0]['idxPx']
+        else:
+            print(f"API 返回错误: {data}")
     except Exception as e:
-        print(f"获取汇率失败: {e}")
+        print(f"请求失败: {e}")
     return None
 
 def update_file(rate):
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    content = f"| 时间 | 汇率 (USDT/CNY) |\n| --- | --- |\n| {now} | {rate} |\n"
-    
-    # 如果文件不存在，写入表头；如果存在，追加内容
     file_path = "rate_history.md"
+    
+    # 检查文件是否存在
     file_exists = os.path.isfile(file_path)
     
     with open(file_path, "a", encoding="utf-8") as f:
@@ -33,4 +34,8 @@ if __name__ == "__main__":
     rate = get_okx_rate()
     if rate:
         update_file(rate)
-        print(f"成功更新汇率: {rate}")
+        print(f"成功获取汇率: {rate}")
+    else:
+        print("未能获取汇率，不更新文件。")
+        # 强制退出，让 GitHub Actions 知道这一步没成功
+        exit(1)

@@ -2,23 +2,23 @@ name: Update USDT Rate
 
 on:
   schedule:
-    # 每 10 分钟运行一次 (GitHub Actions 实际执行可能有几分钟延迟)
+    # 每 10 分钟运行一次 (GitHub 实际执行可能有数分钟延迟)
     - cron: '*/10 * * * *'
-  workflow_dispatch: # 允许你在 Actions 页面点击按钮手动触发
+  workflow_dispatch: # 允许在 Actions 页面手动点击运行
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 必须开启写入权限，否则无法 git push
+    # 必须开启写入权限，否则脚本无法将更新后的汇率推送到仓库
     permissions:
       contents: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
@@ -36,18 +36,13 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 关键点：如果脚本运行失败没生成文件，这里手动补一个空文件防止报错
-          if [ ! -f rate_history.md ]; then
-            echo "Warning: rate_history.md not found, creating a blank one."
-            touch rate_history.md
-          fi
+          # 将所有更改（包括 rate_history.md 和 price.txt）添加到暂存区
+          git add rate_history.md price.txt
           
-          git add rate_history.md
-          
-          # 检查是否有内容变化，有变化才提交，没变化则跳过
+          # 检查是否有内容变化，只有在汇率变动时才提交，防止产生无意义的空提交
           if git diff --staged --quiet; then
-            echo "No changes to commit"
+            echo "汇率未发生变化，跳过本次提交。"
           else
-            git commit -m "Update USDT exchange rate: $(date +'%Y-%m-%d %H:%M:%S')"
+            git commit -m "Update exchange rate: $(date +'%Y-%m-%d %H:%M:%S')"
             git push
           fi
